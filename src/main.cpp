@@ -1,100 +1,143 @@
 
 #include <Arduino.h>
-#include <TFT_eSPI.h>
-#include <cmath>
-#include <WiFi.h>
 #include <string.h>
-#include <string>
+#include <cmath>
+#include <TFT_eSPI.h>
+#include <OneButton.h>
+#include <WiFi.h>
 #include "../include/rm67162.h"
 #include "../include/font.h"
 #include "../include/sevenSeg.h"
-#include "../include/button.h"
-
-#define RGB_TRAN(x_24) (((x_24 & 0xFF0000) >> 19) << 11) + (((x_24 & 0x00FF00) >> 10) << 5) + ((x_24 & 0x0000FF) >> 3)
+#include "../include/logos.h"
 
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
 TFT_eSprite clock_spr = TFT_eSprite(&tft);
 
-#define CLOCK_X(angle, r) (clock_spr_R + ((r) * sin(angle * M_PI / 180)))
-#define CLOCK_Y(angle, r) (clock_spr_R - ((r) * cos(angle * M_PI / 180)))
+#define MAX_APPS_NUM 5
 
 class APP
 {
-    public:
-        APP(){};
-        virtual void draw(){};
-        void change_idx(){
-            _idx += 1;
-            if (_idx == 3){
-                _idx = 0;
-            };
+public:
+    APP(const uint16_t *logo_data){
+        _logo_data = logo_data;
+    };
 
-            _x = _idx * 172 + 10;
-        };
-
-    private:
-        uint8_t _idx = 0;
-        uint16_t _x = 0;
-        uint16_t _y = 60;
-};
-
-void draw_clock_spr()
-{
-    int16_t secAngel = 50;
-    int16_t minAngel = 280;
-    float hourAngel = 150;
-    int colok_x = 20;
-    int colok_y = 60;
-    int clock_spr_R = 80;
-    int clock_spr_r = 75;
-    int clock_spr_w = 2 * clock_spr_R;
-
-    clock_spr.createSprite(clock_spr_w, clock_spr_w);
-    clock_spr.setSwapBytes(true);
-    clock_spr.fillSprite(TFT_SKYBLUE);
-    clock_spr.fillSmoothRoundRect(0, 0, clock_spr_w, clock_spr_w, 30, TFT_BLACK, TFT_SKYBLUE);
-    clock_spr.fillCircle(clock_spr_R, clock_spr_R, clock_spr_r, TFT_BLACK);
-    clock_spr.fillCircle(clock_spr_R, clock_spr_R, clock_spr_r - 5, TFT_WHITE);
-
-    /* Draw dash board. */
-    for (int i = 0; i <= 360; i += 30)
+    void draw_logo()
     {
-        float x = (clock_spr_r - 7) * cos(M_PI - i * M_PI / 180);
-        float y = (clock_spr_r - 7) * sin(i * M_PI / 180);
-        clock_spr.drawWideLine(clock_spr_R + x, clock_spr_R - y, clock_spr_R, clock_spr_R, 2, TFT_BLACK);
+        if (_idx >= 0 && _idx <= 2)
+        {
+            TFT_eSprite logo_spr = TFT_eSprite(&tft);
+            logo_spr.createSprite(120, 120);
+            logo_spr.setSwapBytes(true);
+
+            logo_spr.pushImage(0, 0, 120, 120, _logo_data);
+            lcd_PushColors(_x, _y, 120, 120, (uint16_t *)logo_spr.getPointer());
+        }
+    };
+
+    void set_idx(uint16_t idx)
+    {
+        _idx = idx;
+
+        if (_idx > MAX_APPS_NUM)
+        {
+            printf("idx should be smaller than 3\n");
+        };
+        if (idx == MAX_APPS_NUM)
+        {
+            _idx = 0;
+        }
+
+        _x = _idx * 164 + 44;
+
+        draw_logo();
+    };
+
+    uint16_t get_idx()
+    {
+        return _idx;
     }
 
-    clock_spr.fillCircle(clock_spr_R, clock_spr_R, clock_spr_r - 12, TFT_WHITE);
+private:
+    uint16_t _idx = 0, _x = 0, _y = 90;
+    const uint16_t *_logo_data;
+};
 
-    /* Draw center ring. */
-    clock_spr.fillCircle(clock_spr_R, clock_spr_R, 5, TFT_BLACK);
-    clock_spr.fillCircle(clock_spr_R, clock_spr_R, 3, TFT_WHITE);
+APP weather_app(weather_logo);
+APP clock_app(clock_logo);
+APP picture_app(picture_logo);
+APP wifi_app(wifi_logo);
+APP setup_app(setup_logo);
 
-    /* Draw minute. */
-    clock_spr.drawWideLine(CLOCK_X(minAngel, 5), CLOCK_Y(minAngel, 5), CLOCK_X(minAngel, 20), CLOCK_Y(minAngel, 20), 2, TFT_BLACK);
-    clock_spr.drawWideLine(CLOCK_X(minAngel, 20), CLOCK_Y(minAngel, 20), CLOCK_X(minAngel, clock_spr_r - 15), CLOCK_Y(minAngel, clock_spr_r - 15), 6, TFT_BLACK);
+APP apps[MAX_APPS_NUM] = {weather_app, clock_app, picture_app, wifi_app, setup_app};
 
-    /* Draw hour. */
-    clock_spr.drawWideLine(CLOCK_X(hourAngel, 5), CLOCK_Y(hourAngel, 5), CLOCK_X(hourAngel, 20), CLOCK_Y(hourAngel, 20), 2, TFT_BLACK);
-    clock_spr.drawWideLine(CLOCK_X(hourAngel, 20), CLOCK_Y(hourAngel, 20), CLOCK_X(hourAngel, clock_spr_r - 30), CLOCK_Y(hourAngel, clock_spr_r - 30), 6, TFT_BLACK);
+#define up 21
+#define down 0
 
-    /* Draw second. */
-    clock_spr.drawWideLine(CLOCK_X(secAngel, 5), CLOCK_Y(secAngel, 5), CLOCK_X(secAngel, clock_spr_r - 15), CLOCK_Y(secAngel, clock_spr_r - 15), 2, TFT_RED);
+OneButton button_up(up, true);
+OneButton button_down(down, true);
 
-    lcd_PushColors(colok_x, colok_y, clock_spr_w, clock_spr_w, (uint16_t *)clock_spr.getPointer());
+void draw_background(){
+    sprite.createSprite(536, 240);
+    sprite.setSwapBytes(true);
+
+    /* Set background. */
+    sprite.fillSprite(TFT_BLACK);
+    sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
+    sprite.setTextColor(TFT_BLACK, TFT_WHITE);
+
+    /* Draw title. */
+    // sprite.setFreeFont(&DSEG14_Classic_Regular_28);
+    sprite.setFreeFont(myfonts[8]);
+    sprite.drawString("23-12-03 18:56", 15, 15);
+    sprite.drawString("192.168.10.1", 330, 15);
+
+    /* Draw select rect. */
+    // 44 120 44 120 44 120 44
+    // 178, 70: 318, 210
+    sprite.fillSmoothRoundRect(196, 78, 144, 144, 30, TFT_BLACK, TFT_WHITE);
+    sprite.fillSmoothRoundRect(200, 82, 136, 136, 26, TFT_WHITE, TFT_BLACK);
+
+    lcd_PushColors(0, 0, 536, 240, (uint16_t *)sprite.getPointer());
 }
 
-class clockApp : public APP {
-public:
-    // 子类可以访问父类的公有成员
-    clockApp() : APP(){};
+void up_click()
+{
+}
 
-    // 新的成员函数
-    void draw() override {
-        draw_clock_spr();
-    };
-};
+void up_doubleclick()
+{
+}
+
+void down_click()
+{
+    for(int i = 0; i < MAX_APPS_NUM; i++){
+        apps[i].set_idx(apps[i].get_idx() + 1);
+    }
+}
+
+void down_doubleclick()
+{
+}
+
+void init_button()
+{
+    pinMode(up, INPUT_PULLUP);
+    pinMode(down, INPUT_PULLUP);
+
+    button_up.attachClick(up_click);
+    button_up.attachDoubleClick(up_doubleclick);
+
+    button_down.attachClick(down_click);
+    button_down.attachDoubleClick(down_doubleclick);
+}
+
+void loop_button()
+{
+    // button_up.tick();
+    button_down.tick();
+}
 
 void setup()
 {
@@ -105,21 +148,13 @@ void setup()
     lcd_setRotation(1);
     lcd_brightness(150);
 
-    sprite.createSprite(536, 240);
-    sprite.setSwapBytes(true);
+    draw_background();
 
-    /* Set background. */
-    sprite.fillSprite(TFT_BLACK);
-    sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_SKYBLUE, TFT_BLACK);
-    sprite.setTextColor(TFT_BLACK, TFT_SKYBLUE);
-
-    /* Draw title. */
-    sprite.setFreeFont(&DSEG14_Classic_Regular_28);
-    sprite.drawString("AMOLED -- OS", 150, 20);
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)sprite.getPointer());
-
-    clockApp clock_app;
-    clock_app.draw();
+    /* Init Apps. */
+    for (int i = 0; i < MAX_APPS_NUM; i++)
+    {
+        apps[i].set_idx(i);
+    }
 
     /* Init serial. */
     Serial.begin(115200);

@@ -1,0 +1,5 @@
+#include "../include/logo/clock_logo.h"
+#include "../include/logo/picture_logo.h"
+#include "../include/logo/setup_logo.h"
+#include "../include/logo/weather_logo.h"
+#include "../include/logo/wifi_logo.h"
