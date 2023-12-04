@@ -6,14 +6,17 @@
 #include <OneButton.h>
 #include <WiFi.h>
 #include "../include/rm67162.h"
-#include "../include/font.h"
+#include "../include/my_font.h"
 #include "../include/sevenSeg.h"
 #include "../include/logos.h"
+#include "../include/background.h"
 
 /******************************************************************************/
 /* TFT definition                                                             */
 /******************************************************************************/
 TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite sprite = TFT_eSprite(&tft);
+TFT_eSprite film = TFT_eSprite(&tft);
 
 /******************************************************************************/
 /* UI definition                                                              */
@@ -24,7 +27,7 @@ typedef enum
     UI_SETUP = 1,
     UI_CLOCK = 2,
     UI_WEATHER = 3,
-    UI_WIFI = 4,
+    UI_GAME = 4,
 
     UI_MAIN = 5,
 } UI_MENU;
@@ -46,21 +49,16 @@ public:
 
         /* The initial index of APP comes from the ui_number. */
         set_idx(ui);
+        _logo_spr.createSprite(120, 120);
+        _logo_spr.setSwapBytes(true);
+        _logo_spr.pushImage(0, 0, 120, 120, _logo_data);
+
     };
 
     /* Draw the app's logo image. Should initialize or update idx. */
     void draw_logo()
     {
-        /* Only the first three apps are shown. */
-        if (_idx >= 0 && _idx <= 2)
-        {
-            TFT_eSprite logo_spr = TFT_eSprite(&tft);
-            logo_spr.createSprite(120, 120);
-            logo_spr.setSwapBytes(true);
-
-            logo_spr.pushImage(0, 0, 120, 120, _logo_data);
-            lcd_PushColors(_x, _y, 120, 120, (uint16_t *)logo_spr.getPointer());
-        }
+        lcd_PushColors(_x, _y, 120, 120, (uint16_t *)_logo_spr.getPointer());
     };
 
     void set_idx(int16_t idx)
@@ -78,8 +76,18 @@ public:
         }
 
         /* Calculate the relative _x. */
-        _x = _idx * 164 + 44;
+        _x = _idx * 130 - 52;
     };
+
+    void moving_right(){
+        set_idx(_idx + 1);
+        draw_logo();
+    };
+
+    void moving_left(){
+        set_idx(_idx - 1);
+        draw_logo();
+    }
 
     int16_t get_idx()
     {
@@ -93,19 +101,21 @@ public:
 
 private:
     int16_t _idx = 0;   /* The index of app's location. */
-    uint16_t _x = 0;    /* AXIS x */
-    uint16_t _y = 90;   /* AXIS y */
+    int16_t _x = 0;    /* AXIS x */
+    int16_t _y = 60;   /* AXIS y */
     const uint16_t *_logo_data; /* Pointer to the const logo data */
     UI_MENU _ui;  /* Internal UI index, the initial is idx. */
+    TFT_eSprite _logo_spr = TFT_eSprite(&tft);
+
 };
 
 APP weather_app(weather_logo, UI_WEATHER);
 APP clock_app(clock_logo, UI_CLOCK);
 APP picture_app(picture_logo, UI_PICTURE);
-APP wifi_app(wifi_logo, UI_WIFI);
+APP game_app(game_logo, UI_GAME);
 APP setup_app(setup_logo, UI_SETUP);
 
-APP apps[MAX_APPS_NUM] = {weather_app, clock_app, picture_app, wifi_app, setup_app};
+APP apps[MAX_APPS_NUM] = {picture_app, setup_app ,clock_app, weather_app, game_app};
 APP *cur_app;
 
 
@@ -115,27 +125,6 @@ APP *cur_app;
 
 void draw_main_menu()
 {
-    TFT_eSprite sprite = TFT_eSprite(&tft);
-    sprite.createSprite(536, 240);
-    sprite.setSwapBytes(true);
-
-    /* Set background. */
-    sprite.fillSprite(TFT_BLACK);
-    sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
-    sprite.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    /* Draw title. */
-    // sprite.setFreeFont(&DSEG14_Classic_Regular_28);
-    sprite.setFreeFont(myfonts[8]);
-    sprite.drawString("23-12-03 18:56", 15, 15);
-    sprite.drawString("192.168.10.1", 330, 15);
-
-    /* Draw select rect. */
-    // 44 120 44 120 44 120 44
-    // 178, 70: 318, 210
-    sprite.fillSmoothRoundRect(196, 78, 144, 144, 30, TFT_BLACK, TFT_WHITE);
-    sprite.fillSmoothRoundRect(200, 82, 136, 136, 26, TFT_WHITE, TFT_BLACK);
-
     lcd_PushColors(0, 0, 536, 240, (uint16_t *)sprite.getPointer());
 
     /* Init Apps. */
@@ -147,18 +136,6 @@ void draw_main_menu()
 
 void draw_film_rect(int16_t x, int16_t y)
 {
-    TFT_eSprite film = TFT_eSprite(&tft);
-    film.createSprite(260, 240);
-    film.setSwapBytes(true);
-    film.fillSprite(TFT_BROWN);
-
-    for (int i = 0; i < 8; i++)
-    {
-        film.fillSmoothRoundRect(10 + i * 32, 10, 12, 24, 2, TFT_WHITE, TFT_BROWN);
-        film.fillSmoothRoundRect(10 + i * 32, 206, 12, 24, 2, TFT_WHITE, TFT_BROWN);
-    }
-    film.fillRect(10, 40, 240, 160, TFT_WHITE);
-
     lcd_PushColors(x, y, 260, 240, (uint16_t *)film.getPointer());
 }
 
@@ -220,21 +197,21 @@ void draw_setup_app_ui()
     lcd_PushColors(0, 0, 536, 240, (uint16_t *)setup_ui.getPointer());
 }
 
-void draw_wifi_app_ui()
+void draw_game_app_ui()
 {
-    TFT_eSprite wifi_ui = TFT_eSprite(&tft);
-    wifi_ui.createSprite(536, 240);
-    wifi_ui.setSwapBytes(true);
+    TFT_eSprite game_ui = TFT_eSprite(&tft);
+    game_ui.createSprite(536, 240);
+    game_ui.setSwapBytes(true);
 
     /* Set background. */
-    wifi_ui.fillSprite(TFT_WHITE);
-    wifi_ui.setTextColor(TFT_BLACK, TFT_WHITE);
+    game_ui.fillSprite(TFT_WHITE);
+    game_ui.setTextColor(TFT_BLACK, TFT_WHITE);
 
     /* Draw title. */
-    wifi_ui.setFreeFont(&DSEG14_Classic_Regular_28);
-    wifi_ui.drawString("WIFI APP", 15, 15);
+    game_ui.setFreeFont(&DSEG14_Classic_Regular_28);
+    game_ui.drawString("WIFI APP", 15, 15);
 
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)wifi_ui.getPointer());
+    lcd_PushColors(0, 0, 536, 240, (uint16_t *)game_ui.getPointer());
 }
 
 void draw_ui(UI_MENU ui)
@@ -256,8 +233,8 @@ void draw_ui(UI_MENU ui)
         case UI_SETUP:
             draw_setup_app_ui();
             break;
-        case UI_WIFI:
-            draw_wifi_app_ui();
+        case UI_GAME:
+            draw_game_app_ui();
             break;
         default:
             break;
@@ -281,9 +258,8 @@ void up_click()
         case UI_MAIN:
             for (int i = 0; i < MAX_APPS_NUM; i++)
             {
-                apps[i].set_idx(apps[i].get_idx() - 1);
-                apps[i].draw_logo();
-                if (apps[i].get_idx() == 1)
+                apps[i].moving_left();
+                if (apps[i].get_idx() == 2)
                 {
                     cur_app = &apps[i];
                 }
@@ -301,8 +277,8 @@ void up_doubleclick()
     if (cur_ui != UI_MAIN)
     {
         cur_ui = UI_MAIN;
+        draw_ui(cur_ui);
     }
-    draw_ui(cur_ui);
 }
 
 /* Loop key. */
@@ -313,16 +289,15 @@ void down_click()
         case UI_MAIN:
             for (int i = 0; i < MAX_APPS_NUM; i++)
             {
-                apps[i].set_idx(apps[i].get_idx() + 1);
-                apps[i].draw_logo();
-                if (apps[i].get_idx() == 1)
+                apps[i].moving_right();
+                if (apps[i].get_idx() == 2)
                 {
                     cur_app = &apps[i];
                 }
             }
             break;
         case UI_PICTURE:
-            for (int j = 0; j <= 260; j+=4){
+            for (int j = 0; j <= 260; j+=2){
                 if (138 - 260 + j > 0){
                     draw_film_rect(138 - 520 + j, 0);
                 }
@@ -344,8 +319,8 @@ void down_doubleclick()
     if (cur_ui == UI_MAIN)
     {
         cur_ui = cur_app->get_ui_idx();
+        draw_ui(cur_ui);
     }
-    draw_ui(cur_ui);
 }
 
 void init_button()
@@ -370,6 +345,39 @@ void loop_button()
 /* Adruino setup() and loop()                                                 */
 /******************************************************************************/
 
+void init_global_sprite(){
+    /* Init sprite. */
+    sprite.createSprite(536, 240);
+    sprite.setSwapBytes(true);
+
+    /* Set background. */
+    // sprite.fillSprite(TFT_BLACK);
+    // sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
+    sprite.setTextColor(TFT_BLACK, 0xFF50);
+    sprite.pushImage(0,0,536,240,background);
+
+    /* Draw title. */
+    // sprite.setFreeFont(&DSEG14_Classic_Regular_28);
+    sprite.setFreeFont(&DialogInput_plain_16);
+    sprite.drawString("23-12-03 18:56", 5, 5);
+
+    /* Draw select rect. */
+    sprite.fillSmoothRoundRect(202, 54, 132, 132, 10, TFT_BLACK, TFT_WHITE);
+    sprite.fillSmoothRoundRect(204, 56, 128, 128, 8, TFT_WHITE, TFT_BLACK);
+
+    /* Init film. */
+    film.createSprite(260, 240);
+    film.setSwapBytes(true);
+    film.fillSprite(TFT_BROWN);
+
+    for (int i = 0; i < 8; i++)
+    {
+        film.fillSmoothRoundRect(10 + i * 32, 10, 12, 24, 2, TFT_WHITE, TFT_BROWN);
+        film.fillSmoothRoundRect(10 + i * 32, 206, 12, 24, 2, TFT_WHITE, TFT_BROWN);
+    }
+    film.fillRect(10, 40, 240, 160, TFT_WHITE);
+}
+
 void setup()
 {
     init_button();
@@ -379,11 +387,15 @@ void setup()
     lcd_setRotation(1);
     lcd_brightness(150);
 
-    cur_ui = UI_MAIN;
-    draw_ui(cur_ui);
+    init_global_sprite();
 
     /* Init serial. */
     Serial.begin(115200);
+
+    /* Init UI and APPs. */
+    cur_ui = UI_MAIN;
+    cur_app = &apps[2];
+    draw_ui(cur_ui);
 }
 
 void loop()
