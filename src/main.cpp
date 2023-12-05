@@ -5,15 +5,20 @@
 #include <TFT_eSPI.h>
 #include <OneButton.h>
 #include <WiFi.h>
+#include "../include/build_configs.h"
 #include "../include/rm67162.h"
 #include "../include/my_font.h"
 #include "../include/sevenSeg.h"
 #include "../include/logos.h"
+
+#ifdef USE_BACKGROUND
 #include "../include/background.h"
+#endif
+
+#ifdef PHOTO_SUPPORT
 #include "../include/photos/photos.h"
 #include "../include/NotoSansBold15.h"
-
-#define AA_FONT_SMALL NotoSansBold15
+#endif
 
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
@@ -22,7 +27,10 @@
 /******************************************************************************/
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
+
+#ifdef PHOTO_SUPPORT
 TFT_eSprite film = TFT_eSprite(&tft);
+#endif
 
 /******************************************************************************/
 /* UI definition                                                              */
@@ -121,13 +129,36 @@ APP picture_app(picture_logo, UI_PICTURE);
 APP game_app(game_logo, UI_GAME);
 APP setup_app(setup_logo, UI_SETUP);
 
-APP apps[MAX_APPS_NUM] = {picture_app, setup_app ,clock_app, weather_app, game_app};
+APP apps[MAX_APPS_NUM] = {
+    picture_app,
+    setup_app,
+    clock_app,
+    weather_app,
+    game_app
+};
 APP *cur_app;
 
 
 /******************************************************************************/
 /* UI draw APIs                                                               */
 /******************************************************************************/
+
+void draw_fake_app_ui(const char *str)
+{
+    TFT_eSprite app_ui = TFT_eSprite(&tft);
+    app_ui.createSprite(536, 240);
+    app_ui.setSwapBytes(true);
+
+    /* Set background. */
+    app_ui.fillSprite(TFT_WHITE);
+    app_ui.setTextColor(TFT_BLACK, TFT_WHITE);
+
+    /* Draw title. */
+    app_ui.setFreeFont(&DSEG14_Classic_Regular_28);
+    app_ui.drawString(str, 15, 15);
+
+    lcd_PushColors(0, 0, 536, 240, (uint16_t *)app_ui.getPointer());
+}
 
 void draw_main_menu()
 {
@@ -142,9 +173,10 @@ void draw_main_menu()
 
 void draw_picture_app_ui()
 {
+#ifdef PHOTO_SUPPORT
     int x, flag = 0, N = ARRAY_SIZE(photos);
     for (int i = 0; i < N && flag != 1; i++){
-        for (int j = 0; j < 260 && flag != 1; j+=2){
+        for (int j = 0; j < 260 && flag != 1; j+=1){
             for (int k = N - 1; k >= 0; k --){
                 /* Calculate AXIS and draw the photos. */
                 x = 138 + 260 * (1 - k + i) + j - 122;
@@ -161,74 +193,29 @@ void draw_picture_app_ui()
             }
         }
     }
+#else
+    draw_fake_app_ui("PHOTO APP");
+#endif
 }
 
 void draw_weather_app_ui()
 {
-    TFT_eSprite weather_ui = TFT_eSprite(&tft);
-    weather_ui.createSprite(536, 240);
-    weather_ui.setSwapBytes(true);
-
-    /* Set background. */
-    weather_ui.fillSprite(TFT_WHITE);
-    weather_ui.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    /* Draw title. */
-    weather_ui.setFreeFont(&DSEG14_Classic_Regular_28);
-    weather_ui.drawString("Weather APP", 15, 15);
-
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)weather_ui.getPointer());
+    draw_fake_app_ui("Weather APP");
 }
 
 void draw_clock_app_ui()
 {
-    TFT_eSprite clock_ui = TFT_eSprite(&tft);
-    clock_ui.createSprite(536, 240);
-    clock_ui.setSwapBytes(true);
-
-    /* Set background. */
-    clock_ui.fillSprite(TFT_WHITE);
-    clock_ui.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    /* Draw title. */
-    clock_ui.setFreeFont(&DSEG14_Classic_Regular_28);
-    clock_ui.drawString("CLOCK APP", 15, 15);
-
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)clock_ui.getPointer());
+    draw_fake_app_ui("CLOCK APP");
 }
 
 void draw_setup_app_ui()
 {
-    TFT_eSprite setup_ui = TFT_eSprite(&tft);
-    setup_ui.createSprite(536, 240);
-    setup_ui.setSwapBytes(true);
-
-    /* Set background. */
-    setup_ui.fillSprite(TFT_WHITE);
-    setup_ui.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    /* Draw title. */
-    setup_ui.setFreeFont(&DSEG14_Classic_Regular_28);
-    setup_ui.drawString("SETUP APP", 15, 15);
-
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)setup_ui.getPointer());
+    draw_fake_app_ui("SETUP APP");
 }
 
 void draw_game_app_ui()
 {
-    TFT_eSprite game_ui = TFT_eSprite(&tft);
-    game_ui.createSprite(536, 240);
-    game_ui.setSwapBytes(true);
-
-    /* Set background. */
-    game_ui.fillSprite(TFT_WHITE);
-    game_ui.setTextColor(TFT_BLACK, TFT_WHITE);
-
-    /* Draw title. */
-    game_ui.setFreeFont(&DSEG14_Classic_Regular_28);
-    game_ui.drawString("WIFI APP", 15, 15);
-
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)game_ui.getPointer());
+    draw_fake_app_ui("GAME APP");
 }
 
 void draw_ui(UI_MENU ui)
@@ -358,9 +345,8 @@ void init_global_sprite(){
     sprite.createSprite(536, 240);
     sprite.setSwapBytes(true);
 
+#ifdef USE_BACKGROUND
     /* Set background. */
-    // sprite.fillSprite(TFT_BLACK);
-    // sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
     sprite.pushImage(0,0,536,240,background);
 
     /* Draw title. */
@@ -368,11 +354,15 @@ void init_global_sprite(){
     sprite.setFreeFont(&DialogInput_plain_16);
     sprite.setTextColor(TFT_BLACK, 0xFF50);
     sprite.drawString("23-12-03 18:56", 5, 5);
+#else
+    sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
+#endif
 
     /* Draw select rect. */
     sprite.fillSmoothRoundRect(202, 54, 132, 132, 10, TFT_BLACK, TFT_WHITE);
     sprite.fillSmoothRoundRect(204, 56, 128, 128, 8, TFT_WHITE, TFT_BLACK);
 
+#ifdef PHOTO_SUPPORT
     /* Init film. */
     film.createSprite(260, 240);
     film.setSwapBytes(true);
@@ -380,20 +370,19 @@ void init_global_sprite(){
 
     for (int i = 0; i < 8; i++)
     {
-        film.fillSmoothRoundRect(10 + i * 32, 12, 12, 20, 2, TFT_WHITE, 0x8A22);
-        film.fillSmoothRoundRect(10 + i * 32, 206, 12, 20, 2, TFT_WHITE, 0x8A22);
+        film.fillSmoothRoundRect(12 + i * 32, 12, 12, 20, 2, TFT_WHITE, 0x8A22);
+        film.fillSmoothRoundRect(12 + i * 32, 206, 12, 20, 2, TFT_WHITE, 0x8A22);
     }
-    film.loadFont(AA_FONT_SMALL);
+    film.loadFont(NotoSansBold15);
     film.setTextColor(0xFC06, 0x8A22);
     film.drawString("kz 01 9542 0676-", 10, 227);
 
-    const uint8_t barcode_black[] = {3,5,3,1,2,3,1,2,4,2,2,2,2,1,3,2,1,4,2,2,2,2,1,4,5,1,4,1,1,2};
-    const uint8_t barcode_white[] = {2,1,1,1,3,1,1,1,1,1,1,2,2,2,1,2,2,2,1,1,2,2,1,1,1,1,1,3,1,1};
     uint16_t x = 140;
     for (uint16_t i = 0; i < 30; i ++){
         film.fillRect(x, 229, barcode_black[i], 10, 0xFC06);
         x += (barcode_white[i] + barcode_black[i]);
     }
+#endif
 }
 
 void setup()
