@@ -10,6 +10,12 @@
 #include "../include/sevenSeg.h"
 #include "../include/logos.h"
 #include "../include/background.h"
+#include "../include/photos/photos.h"
+#include "../include/NotoSansBold15.h"
+
+#define AA_FONT_SMALL NotoSansBold15
+
+#define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
 
 /******************************************************************************/
 /* TFT definition                                                             */
@@ -134,16 +140,27 @@ void draw_main_menu()
     }
 }
 
-void draw_film_rect(int16_t x, int16_t y)
-{
-    lcd_PushColors(x, y, 260, 240, (uint16_t *)film.getPointer());
-}
-
 void draw_picture_app_ui()
 {
-    draw_film_rect(138, 0);
-    draw_film_rect(138 + 260, 0);
-    draw_film_rect(138 - 260, 0);
+    int x, flag = 0, N = ARRAY_SIZE(photos);
+    for (int i = 0; i < N && flag != 1; i++){
+        for (int j = 0; j < 260 && flag != 1; j+=2){
+            for (int k = N - 1; k >= 0; k --){
+                /* Calculate AXIS and draw the photos. */
+                x = 138 + 260 * (1 - k + i) + j - 122;
+                if (x >= -260 && x < 536) {
+                    film.pushImage(10, 40, 240, 160, photos[k]);
+                    lcd_PushColors(x, 0, 260, 240, (uint16_t *)film.getPointer());
+                }
+
+                /* Exit Loop. */
+                if (k == N - 1 && x == 0){
+                    flag = 1;
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void draw_weather_app_ui()
@@ -297,16 +314,7 @@ void down_click()
             }
             break;
         case UI_PICTURE:
-            for (int j = 0; j <= 260; j+=2){
-                if (138 - 260 + j > 0){
-                    draw_film_rect(138 - 520 + j, 0);
-                }
-                draw_film_rect(138 - 260 + j, 0);
-                draw_film_rect(138 + j, 0);
-                if (138 + 260 + j < 536){
-                    draw_film_rect(138 + 260 + j, 0);
-                }
-            }
+                draw_ui(cur_ui);
             break;
         default:
             break;
@@ -353,12 +361,12 @@ void init_global_sprite(){
     /* Set background. */
     // sprite.fillSprite(TFT_BLACK);
     // sprite.fillSmoothRoundRect(0, 0, 536, 240, 30, TFT_WHITE, TFT_BLACK);
-    sprite.setTextColor(TFT_BLACK, 0xFF50);
     sprite.pushImage(0,0,536,240,background);
 
     /* Draw title. */
     // sprite.setFreeFont(&DSEG14_Classic_Regular_28);
     sprite.setFreeFont(&DialogInput_plain_16);
+    sprite.setTextColor(TFT_BLACK, 0xFF50);
     sprite.drawString("23-12-03 18:56", 5, 5);
 
     /* Draw select rect. */
@@ -368,14 +376,24 @@ void init_global_sprite(){
     /* Init film. */
     film.createSprite(260, 240);
     film.setSwapBytes(true);
-    film.fillSprite(TFT_BROWN);
+    film.fillSprite(0x8A22);
 
     for (int i = 0; i < 8; i++)
     {
-        film.fillSmoothRoundRect(10 + i * 32, 10, 12, 24, 2, TFT_WHITE, TFT_BROWN);
-        film.fillSmoothRoundRect(10 + i * 32, 206, 12, 24, 2, TFT_WHITE, TFT_BROWN);
+        film.fillSmoothRoundRect(10 + i * 32, 12, 12, 20, 2, TFT_WHITE, 0x8A22);
+        film.fillSmoothRoundRect(10 + i * 32, 206, 12, 20, 2, TFT_WHITE, 0x8A22);
     }
-    film.fillRect(10, 40, 240, 160, TFT_WHITE);
+    film.loadFont(AA_FONT_SMALL);
+    film.setTextColor(0xFC06, 0x8A22);
+    film.drawString("kz 01 9542 0676-", 10, 227);
+
+    const uint8_t barcode_black[] = {3,5,3,1,2,3,1,2,4,2,2,2,2,1,3,2,1,4,2,2,2,2,1,4,5,1,4,1,1,2};
+    const uint8_t barcode_white[] = {2,1,1,1,3,1,1,1,1,1,1,2,2,2,1,2,2,2,1,1,2,2,1,1,1,1,1,3,1,1};
+    uint16_t x = 140;
+    for (uint16_t i = 0; i < 30; i ++){
+        film.fillRect(x, 229, barcode_black[i], 10, 0xFC06);
+        x += (barcode_white[i] + barcode_black[i]);
+    }
 }
 
 void setup()
