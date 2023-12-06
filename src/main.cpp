@@ -10,6 +10,7 @@
 #include "../include/my_font.h"
 #include "../include/sevenSeg.h"
 #include "../include/logos.h"
+#include "../include/queue.h"
 
 #ifdef USE_BACKGROUND
 #include "../include/background.h"
@@ -27,6 +28,7 @@
 /******************************************************************************/
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite sprite = TFT_eSprite(&tft);
+TFT_eSprite start_spr = TFT_eSprite(&tft);
 
 #ifdef PHOTO_SUPPORT
 TFT_eSprite film = TFT_eSprite(&tft);
@@ -337,6 +339,26 @@ void loop_button()
 }
 
 /******************************************************************************/
+/* Startup Page                                                           */
+/******************************************************************************/
+
+
+void draw_start_up_page()
+{
+    start_spr.createSprite(536, 240);
+    start_spr.setSwapBytes(true);
+    start_spr.fillSprite(TFT_BLACK);
+
+    start_spr.setFreeFont(&DialogInput_plain_16);
+    start_spr.setTextColor(TFT_BLACK, 0xFF50);
+    start_spr.drawString("23-12-03 18:56", 5, 5);
+    lcd_PushColors(0, 0, 536, 240, (uint16_t *)start_spr.getPointer());
+    Queue queue(8, 20);
+
+    delay(1000);
+}
+
+/******************************************************************************/
 /* Adruino setup() and loop()                                                 */
 /******************************************************************************/
 
@@ -387,17 +409,19 @@ void init_global_sprite(){
 
 void setup()
 {
-    init_button();
-
     /* Amoled lcd initialization. */
     rm67162_init();
     lcd_setRotation(1);
     lcd_brightness(150);
 
-    init_global_sprite();
-
     /* Init serial. */
     Serial.begin(115200);
+
+    init_button();
+
+    init_global_sprite();
+
+    // draw_start_up_page();
 
     /* Init UI and APPs. */
     cur_ui = UI_MAIN;
