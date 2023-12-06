@@ -11,6 +11,9 @@
 #include "../include/sevenSeg.h"
 #include "../include/logos.h"
 #include "../include/queue.h"
+#include "../include/app.h"
+#include "../include/ui.h"
+
 
 #ifdef USE_BACKGROUND
 #include "../include/background.h"
@@ -34,96 +37,11 @@ TFT_eSprite start_spr = TFT_eSprite(&tft);
 TFT_eSprite film = TFT_eSprite(&tft);
 #endif
 
-/******************************************************************************/
-/* UI definition                                                              */
-/******************************************************************************/
-typedef enum
-{
-    UI_PICTURE = 0,
-    UI_SETUP = 1,
-    UI_CLOCK = 2,
-    UI_WEATHER = 3,
-    UI_GAME = 4,
-
-    UI_MAIN = 5,
-} UI_MENU;
-
 UI_MENU cur_ui;
 
 /******************************************************************************/
 /* APP class definition                                                       */
 /******************************************************************************/
-#define MAX_APPS_NUM 5
-
-class APP
-{
-public:
-    APP(const uint16_t *logo_data, UI_MENU ui)
-    {
-        _logo_data = logo_data;
-        _ui = ui;
-
-        /* The initial index of APP comes from the ui_number. */
-        set_idx(ui);
-        _logo_spr.createSprite(120, 120);
-        _logo_spr.setSwapBytes(true);
-        _logo_spr.pushImage(0, 0, 120, 120, _logo_data);
-
-    };
-
-    /* Draw the app's logo image. Should initialize or update idx. */
-    void draw_logo()
-    {
-        lcd_PushColors(_x, _y, 120, 120, (uint16_t *)_logo_spr.getPointer());
-    };
-
-    void set_idx(int16_t idx)
-    {
-        _idx = idx;
-
-        /* APPs work as a de-queue. */
-        if (idx == MAX_APPS_NUM)
-        {
-            _idx = 0;
-        }
-        if (idx < 0)
-        {
-            _idx = MAX_APPS_NUM - 1;
-        }
-
-        /* Calculate the relative _x. */
-        _x = _idx * 130 - 52;
-    };
-
-    void moving_right(){
-        set_idx(_idx + 1);
-        draw_logo();
-    };
-
-    void moving_left(){
-        set_idx(_idx - 1);
-        draw_logo();
-    }
-
-    int16_t get_idx()
-    {
-        return _idx;
-    }
-
-    UI_MENU get_ui_idx()
-    {
-        return _ui;
-    };
-
-private:
-    int16_t _idx = 0;   /* The index of app's location. */
-    int16_t _x = 0;    /* AXIS x */
-    int16_t _y = 60;   /* AXIS y */
-    const uint16_t *_logo_data; /* Pointer to the const logo data */
-    UI_MENU _ui;  /* Internal UI index, the initial is idx. */
-    TFT_eSprite _logo_spr = TFT_eSprite(&tft);
-
-};
 
 APP weather_app(weather_logo, UI_WEATHER);
 APP clock_app(clock_logo, UI_CLOCK);
@@ -139,7 +57,6 @@ APP apps[MAX_APPS_NUM] = {
     game_app
 };
 APP *cur_app;
-
 
 /******************************************************************************/
 /* UI draw APIs                                                               */
@@ -341,7 +258,6 @@ void loop_button()
 /******************************************************************************/
 /* Startup Page                                                           */
 /******************************************************************************/
-
 
 void draw_start_up_page()
 {
