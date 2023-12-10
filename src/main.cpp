@@ -25,6 +25,8 @@
 #endif
 
 #define ARRAY_SIZE(x) sizeof(x)/sizeof(x[0])
+#define MAX(x, y)     ((x >= y) ? x : y)
+#define MIN(x, y)     ((x >= y) ? y : x)
 
 /******************************************************************************/
 /* TFT definition                                                             */
@@ -259,19 +261,38 @@ void loop_button()
 /* Startup Page                                                           */
 /******************************************************************************/
 
-void draw_start_up_page()
+#define INIT_SUCCESS 1
+#define INIT_FAIL 0
+
+void prepare_start_spr()
 {
     start_spr.createSprite(536, 240);
     start_spr.setSwapBytes(true);
     start_spr.fillSprite(TFT_BLACK);
 
     start_spr.setFreeFont(&DialogInput_plain_16);
-    start_spr.setTextColor(TFT_BLACK, 0xFF50);
-    start_spr.drawString("23-12-03 18:56", 5, 5);
-    lcd_PushColors(0, 0, 536, 240, (uint16_t *)start_spr.getPointer());
-    Queue queue(8, 20);
+    start_spr.setTextColor(TFT_WHITE, TFT_BLACK);
+}
 
-    delay(1000);
+void system_log(const char *str, uint16_t type)
+{
+    static char logs[8][50] = {""};
+    static int idx = 0;
+
+    strcpy(logs[idx], str);
+
+    for (int i = 0; i <= idx; i ++){
+        start_spr.drawString(logs[i], 10, 10 + 20 * i);
+    }
+    idx ++;
+    lcd_PushColors(0, 0, 536, 240, (uint16_t *)start_spr.getPointer());
+
+    delay(200);
+    if (type == INIT_FAIL)
+    {
+        while(1){
+        }
+    }
 }
 
 /******************************************************************************/
@@ -330,14 +351,22 @@ void setup()
     lcd_setRotation(1);
     lcd_brightness(150);
 
-    /* Init serial. */
-    Serial.begin(115200);
+    /* Global sprite init. */
+    prepare_start_spr();
+    init_global_sprite();
+
+    system_log("System Init", INIT_SUCCESS);
+    system_log("-------------------------", INIT_SUCCESS);
+    system_log("[  OK  ] LCD is set", INIT_SUCCESS);
 
     init_button();
 
-    init_global_sprite();
-
-    // draw_start_up_page();
+    /* Init serial. */
+    Serial.begin(115200);
+    system_log("[  OK  ] Serial baud rate 115200", INIT_SUCCESS);
+    system_log("Wifi Connecting...", INIT_SUCCESS);
+    system_log("[  OK  ] Wifi connected", INIT_SUCCESS);
+    // system_log("[ FAIL ] WIFI cannot connect", INIT_FAIL);
 
     /* Init UI and APPs. */
     cur_ui = UI_MAIN;
